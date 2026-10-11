@@ -43,6 +43,10 @@ body{
   border:1px solid var(--line);border-radius:3px;padding:7px 8px;cursor:pointer;
 }
 .mute:hover{color:var(--cyan);border-color:var(--cyan)}
+.tools{display:flex;gap:8px;align-items:center}
+a.mute{display:inline-block;text-decoration:none;line-height:1.2}
+a.portal{color:var(--magenta);border-color:var(--magenta);box-shadow:0 0 8px rgba(255,43,214,.45)}
+a.portal:hover{background:rgba(255,43,214,.14);color:var(--magenta);border-color:var(--magenta)}
 .mute[aria-pressed="true"]{color:var(--red);border-color:var(--red)}
 :focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
 
@@ -83,6 +87,8 @@ body{
 .btn.hard{color:var(--magenta);border-color:var(--magenta);box-shadow:0 0 10px rgba(255,43,214,.55),inset 0 0 8px rgba(255,43,214,.25);text-shadow:0 0 6px var(--magenta)}
 .btn.hard:hover{background:rgba(255,43,214,.14)}
 .btn.hard[aria-pressed="true"]{background:var(--magenta);color:#05030f;text-shadow:none}
+.btn.ghost{color:var(--dim);border-color:var(--dim);box-shadow:none;text-shadow:none}
+.btn.ghost:hover{color:var(--magenta);border-color:var(--magenta);background:rgba(255,43,214,.1)}
 .btn.go{font-size:13px;padding:14px 22px;color:var(--yellow);border-color:var(--yellow);box-shadow:0 0 14px rgba(255,225,77,.6),inset 0 0 10px rgba(255,225,77,.25);text-shadow:0 0 8px var(--yellow)}
 .btn.go:hover{background:rgba(255,225,77,.14)}
 
@@ -103,7 +109,10 @@ body{
   <div class="stat"><span class="k">RONDA</span><span class="v" id="round">1</span></div>
   <div class="stat"><span class="k">VIDAS</span><span class="v" id="lives"></span></div>
   <div class="stat"><span class="k">PODER</span><span class="v" id="power">—</span></div>
-  <button class="mute" id="mute" type="button" aria-pressed="false">SOM</button>
+  <div class="tools">
+    <a class="mute portal" id="portal" href="https://figueira61.github.io/Templo-do-Retro/">PORTAL</a>
+    <button class="mute" id="mute" type="button" aria-pressed="false">SOM</button>
+  </div>
 </header>
 
 <main class="stage" id="stage">
@@ -118,6 +127,7 @@ body{
     </div>
     <p class="note" id="ovNote">Vida extra a cada 20.000 pontos.</p>
     <button class="btn go" id="ovBtn" type="button">JOGAR</button>
+    <button class="btn ghost" id="ovMenu" type="button" hidden>MENU INICIAL</button>
     <p class="note" id="ovKeys">Rato, toque ou ← → movem a nave.<br>Espaço ou clique lança a bola e dispara. P pausa.</p>
   </div>
 </main>
@@ -147,7 +157,7 @@ try { document.fonts && document.fonts.load('10px "Press Start 2P"'); } catch (_
 const el = {
   score: $('score'), hi: $('hi'), round: $('round'), lives: $('lives'), power: $('power'), mute: $('mute'),
   ov: $('overlay'), title: $('ovTitle'), sub: $('ovSub'), diff: $('ovDiff'), note: $('ovNote'), keys: $('ovKeys'),
-  btn: $('ovBtn'), dN: $('dNormal'), dH: $('dHard')
+  btn: $('ovBtn'), menu: $('ovMenu'), dN: $('dNormal'), dH: $('dHard')
 };
 
 // ---------- constants ----------
@@ -292,6 +302,7 @@ function showOverlay(mode) {
   el.diff.hidden = !(menu || over);
   el.note.hidden = !(menu || over);
   el.keys.hidden = !menu;
+  el.menu.hidden = mode !== 'pause';
   if (menu) { el.title.textContent = 'ARKANOID'; el.sub.textContent = 'Destrói todos os blocos e apanha as cápsulas.'; el.btn.textContent = 'JOGAR'; }
   else if (over) {
     el.title.textContent = 'FIM DE JOGO';
@@ -309,6 +320,16 @@ function setDiff(d) {
 }
 function pause() { if (state === 'ready' || state === 'play') { prevState = state; state = 'paused'; fireHeld = false; showOverlay('pause'); } }
 function resume() { if (state === 'paused') { state = prevState; hideOverlay(); } }
+function toMenu() {
+  saveHi();
+  state = 'menu'; fireHeld = false; keys.left = keys.right = false;
+  score = 0; level = 1; lives = DIFF[diff].lives; lastLives = -1; hits = 0;
+  powers = { laser: false, enlarge: false, catch: false };
+  breakOpen = false; pendingClear = false; banner = null;
+  caps = []; bullets = []; parts = []; balls = [];
+  paddle.x = W / 2; paddle.w = PW;
+  buildLevel(); updateHUD(); showOverlay('menu');
+}
 function gameOver() {
   state = 'over'; saveHi(); updateHUD(); showOverlay('over');
 }
@@ -661,6 +682,7 @@ function toggleMute() {
   muted = !muted; el.mute.setAttribute('aria-pressed', String(muted)); el.mute.textContent = muted ? 'MUDO' : 'SOM';
 }
 el.mute.addEventListener('click', () => { unlock(); toggleMute(); });
+el.menu.addEventListener('click', () => { unlock(); toMenu(); });
 el.dN.addEventListener('click', () => setDiff('normal'));
 el.dH.addEventListener('click', () => setDiff('hard'));
 el.btn.addEventListener('click', () => { unlock(); if (ovMode === 'pause') resume(); else startGame(); });
