@@ -65,10 +65,8 @@ a.portal:hover{background:rgba(255,43,214,.14);color:var(--magenta);border-color
 .crt{position:absolute;inset:0;pointer-events:none;
   background:
     radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%),
-    repeating-linear-gradient(to bottom,rgba(0,0,0,.30) 0 1px,transparent 1px 3px);
-  mix-blend-mode:normal;animation:flick 6s steps(60) infinite;
+    repeating-linear-gradient(to bottom,rgba(0,0,0,.16) 0 1px,transparent 1px 4px);
 }
-@keyframes flick{0%,100%{opacity:1}47%{opacity:.96}48%{opacity:.88}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.crt{animation:none}}
 
 .overlay{
@@ -330,7 +328,7 @@ var RETRO = (function () {
 const W = 480, H = 640;
 const $ = id => document.getElementById(id);
 const cv = $('game');
-let ctx = cv.getContext('2d', { alpha: false, desynchronized: true });
+let ctx = cv.getContext('2d', { alpha: false });
 const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
