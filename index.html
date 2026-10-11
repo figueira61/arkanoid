@@ -55,7 +55,9 @@ a.portal:hover{background:rgba(255,43,214,.14);color:var(--magenta);border-color
   border:2px solid var(--magenta);
   box-shadow:0 0 0 1px #000,0 0 18px rgba(255,43,214,.55),0 0 60px rgba(37,244,255,.18),inset 0 0 28px rgba(255,43,214,.25);
 }
-#game{display:block;width:100%;height:100%;touch-action:none;cursor:none;filter:saturate(1.15) contrast(1.05)}
+#game{display:block;width:100%;height:100%;touch-action:none;cursor:none}
+.stage{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.overlay{touch-action:pan-y}
 .crt{position:absolute;inset:0;pointer-events:none;
   background:
     radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%),
@@ -322,8 +324,9 @@ var RETRO = (function () {
 'use strict';
 const W = 480, H = 640;
 const $ = id => document.getElementById(id);
-const cv = $('game'), ctx = cv.getContext('2d');
-const dpr = Math.min(window.devicePixelRatio || 1, 2);
+const cv = $('game');
+let ctx = cv.getContext('2d', { alpha: false, desynchronized: true });
+const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -431,6 +434,7 @@ function addScore(n) {
 // ---------- level / ball ----------
 function buildLevel() {
   bricks = [];
+  bricksDirty = true;
   const pat = LEVELS[(level - 1) % LEVELS.length];
   const loop = Math.floor((level - 1) / LEVELS.length);
   pat.forEach((row, r) => {
@@ -596,8 +600,8 @@ function burst(x, y, color, n) {
 function hitBrick(br) {
   if (br.type === 'g') { br.flash = 1; sfx.gold(); return; }
   br.hp--;
-  if (br.hp > 0) { br.flash = 1; sfx.silver(); return; }
-  br.alive = false; hits++;
+  if (br.hp > 0) { br.flash = 1; bricksDirty = true; sfx.silver(); return; }
+  br.alive = false; bricksDirty = true; hits++;
   addScore(br.type === 's' ? 50 * level : PTS[br.ch]);
   burst(br.x + br.w / 2, br.y + br.h / 2, br.color, 10);
   sfx.brick(br.type === 's' ? 5 : (+br.ch || 1));
@@ -710,26 +714,43 @@ function drawBackground() {
   for (let x = 0; x <= W; x += 40) { ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, H); }
   ctx.stroke(); ctx.restore();
 }
-function drawWalls() {
+function makeLayer() {
+  const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height;
+  const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { c, g };
+}
+function onLayer(layer, fn) { const prev = ctx; ctx = layer.g; try { fn(); } finally { ctx = prev; } }
+const wallClosed = makeLayer(), wallOpen = makeLayer(), brickLayer = makeLayer();
+let bricksDirty = true;
+
+function paintWalls(open) {
   ctx.save();
   ctx.strokeStyle = '#25f4ff'; ctx.shadowColor = '#25f4ff'; ctx.shadowBlur = 14; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(1.5, H); ctx.lineTo(1.5, 1.5); ctx.lineTo(W - 1.5, 1.5);
-  if (breakOpen) { ctx.lineTo(W - 1.5, PY - 46); ctx.moveTo(W - 1.5, PY + 30); }
+  if (open) { ctx.lineTo(W - 1.5, PY - 46); ctx.moveTo(W - 1.5, PY + 30); }
   ctx.lineTo(W - 1.5, H); ctx.stroke();
-  if (breakOpen) {
-    const p = .55 + .45 * Math.sin(clock * 8);
-    ctx.strokeStyle = rgba('#c04bff', p); ctx.shadowColor = '#c04bff'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(W - 22, PY - 18); ctx.lineTo(W - 8, PY); ctx.lineTo(W - 22, PY + 18); ctx.stroke();
-  }
   ctx.restore();
 }
-function drawBricks() {
+onLayer(wallClosed, () => paintWalls(false));
+onLayer(wallOpen, () => paintWalls(true));
+function drawWalls() {
+  ctx.drawImage((breakOpen ? wallOpen : wallClosed).c, 0, 0, W, H);
+  if (breakOpen) {
+    const p = .55 + .45 * Math.sin(clock * 8);
+    ctx.save();
+    ctx.strokeStyle = rgba('#c04bff', p); ctx.shadowColor = '#c04bff'; ctx.shadowBlur = 12; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(W - 22, PY - 18); ctx.lineTo(W - 8, PY); ctx.lineTo(W - 22, PY + 18); ctx.stroke();
+    ctx.restore();
+  }
+}
+function paintBricks() {
+  ctx.clearRect(0, 0, W, H);
   for (const b of bricks) {
     if (!b.alive) continue;
     const x = b.x + 1, y = b.y + 1, w = b.w - 2, h = b.h - 2;
     ctx.save();
     ctx.shadowColor = b.color; ctx.shadowBlur = b.type === 'g' ? 6 : 9;
-    ctx.fillStyle = rgba(b.color, b.flash > 0 ? .2 + .7 * b.flash : .2);
+    ctx.fillStyle = rgba(b.color, .2);
     ctx.strokeStyle = b.color; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.rect(x + .5, y + .5, w - 1, h - 1); ctx.fill(); ctx.stroke();
     ctx.shadowBlur = 0;
@@ -744,6 +765,16 @@ function drawBricks() {
       ctx.fillRect(x + 4, y + h / 2 - 1, 3, 3); ctx.fillRect(x + w - 7, y + h / 2 - 1, 3, 3);
     }
     ctx.restore();
+  }
+}
+function drawBricks() {
+  if (bricksDirty) { bricksDirty = false; onLayer(brickLayer, paintBricks); }
+  ctx.drawImage(brickLayer.c, 0, 0, W, H);
+  for (const b of bricks) {
+    if (b.alive && b.flash > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (b.flash * .55) + ')';
+      ctx.fillRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+    }
   }
 }
 function drawCaps() {
@@ -819,20 +850,33 @@ function draw() {
 }
 
 // ---------- input ----------
+let rectCache = null;
 function pointerX(e) {
-  const r = cv.getBoundingClientRect();
+  const r = rectCache || (rectCache = cv.getBoundingClientRect());
   return (e.clientX - r.left) / r.width * W;
 }
+window.addEventListener('resize', () => { rectCache = null; });
+window.addEventListener('scroll', () => { rectCache = null; }, { passive: true });
+const TOUCH_SENS = 1.5;
+let dragId = null, dragX = 0;
 function movePointer(e) {
   if (state !== 'ready' && state !== 'play') return;
-  paddle.x = pointerX(e); clampPaddle();
+  if (e.pointerType === 'touch') {
+    if (e.pointerId !== dragId) return;
+    const x = pointerX(e);
+    paddle.x += (x - dragX) * TOUCH_SENS; dragX = x;
+  } else paddle.x = pointerX(e);
+  clampPaddle();
 }
 cv.addEventListener('pointerdown', e => {
-  e.preventDefault(); unlock(); fireHeld = true; movePointer(e); action();
+  e.preventDefault(); unlock(); fireHeld = true; rectCache = null;
+  if (e.pointerType === 'touch') { if (dragId === null) { dragId = e.pointerId; dragX = pointerX(e); } }
+  else movePointer(e);
+  action();
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
 });
 cv.addEventListener('pointermove', movePointer);
-const stopFire = () => { fireHeld = false; };
+const stopFire = e => { fireHeld = false; if (e && e.pointerId === dragId) dragId = null; };
 cv.addEventListener('pointerup', stopFire);
 cv.addEventListener('pointercancel', stopFire);
 
@@ -869,7 +913,7 @@ el.btn.addEventListener('click', () => { unlock(); if (ovMode === 'pause') resum
 // ---------- loop ----------
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(.033, (now - last) / 1000); last = now; clock += dt;
+  const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
   if (state === 'ready' || state === 'play' || state === 'clear') update(dt);
   draw();
   requestAnimationFrame(frame);
