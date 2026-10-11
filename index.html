@@ -43,7 +43,11 @@ body{
   border:1px solid var(--line);border-radius:3px;padding:7px 8px;cursor:pointer;
 }
 .mute:hover{color:var(--cyan);border-color:var(--cyan)}
-.tools{display:flex;gap:8px;align-items:center}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.mute:disabled{opacity:.4;cursor:default}
+button.mute.pausa{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 8px rgba(37,244,255,.4);white-space:nowrap}
+button.mute.pausa:hover:not(:disabled){background:rgba(37,244,255,.12);color:var(--cyan);border-color:var(--cyan)}
+button.mute.pausa[aria-pressed="true"]{background:var(--cyan);color:#05030f;border-color:var(--cyan)}
 a.mute{display:inline-block;text-decoration:none;line-height:1.2}
 a.portal{color:var(--magenta);border-color:var(--magenta);box-shadow:0 0 8px rgba(255,43,214,.45)}
 a.portal:hover{background:rgba(255,43,214,.14);color:var(--magenta);border-color:var(--magenta)}
@@ -142,6 +146,7 @@ button.mute.hall:hover{background:rgba(255,225,77,.12);color:var(--yellow);borde
   <div class="tools">
     <a class="mute portal" id="portal" href="https://figueira61.github.io/Templo-do-Retro/">PORTAL</a>
     <button class="mute hall" id="hallBtn" type="button" aria-label="Hall of Fame">🏆 HALL</button>
+    <button class="mute pausa" id="pauseBtn" type="button" aria-pressed="false" disabled>⏸ PAUSA</button>
     <button class="mute" id="mute" type="button" aria-pressed="false">SOM</button>
   </div>
 </header>
@@ -901,6 +906,18 @@ window.addEventListener('blur', () => { keys.left = keys.right = fireHeld = fals
 document.addEventListener('visibilitychange', () => { if (document.hidden) { saveHi(); pause(); } });
 window.addEventListener('pagehide', saveHi);
 
+const pauseBtn = $('pauseBtn');
+let pauseSync = '';
+function syncPauseBtn() {
+  const can = state === 'ready' || state === 'play' || state === 'paused';
+  const key = (can ? 1 : 0) + ':' + (state === 'paused' ? 1 : 0);
+  if (key === pauseSync) return;
+  pauseSync = key;
+  pauseBtn.disabled = !can;
+  pauseBtn.setAttribute('aria-pressed', String(state === 'paused'));
+}
+pauseBtn.addEventListener('click', () => { unlock(); if (state === 'paused') resume(); else pause(); });
+
 function toggleMute() {
   muted = !muted; el.mute.setAttribute('aria-pressed', String(muted)); el.mute.textContent = muted ? 'MUDO' : 'SOM';
 }
@@ -915,6 +932,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
   if (state === 'ready' || state === 'play' || state === 'clear') update(dt);
+  syncPauseBtn();
   draw();
   requestAnimationFrame(frame);
 }
