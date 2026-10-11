@@ -99,6 +99,34 @@ a.portal:hover{background:rgba(255,43,214,.14);color:var(--magenta);border-color
   font-family:var(--font-display);font-weight:400;font-size:7px;color:var(--c);box-shadow:0 0 8px var(--c);background:rgba(255,255,255,.04)
 }
 .hint{width:var(--w);text-align:center;font-size:18px;color:var(--dim)}
+/* ===== Multiplayer: login + Hall of Fame ===== */
+.rt-barra{width:var(--w);min-width:0;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:4px 10px;min-height:20px;font-size:19px;color:var(--dim)}
+.rt-barra b{color:var(--cyan);font-weight:400}
+.rt-barra button{background:none;border:0;text-decoration:underline;font:inherit;cursor:pointer;padding:2px 4px;color:var(--cyan)}
+#rt-estado{min-height:20px}
+a.mute.portal,button.mute.hall{white-space:nowrap}
+button.mute.hall{color:var(--yellow);border-color:var(--yellow);box-shadow:0 0 8px rgba(255,225,77,.4)}
+button.mute.hall:hover{background:rgba(255,225,77,.12);color:var(--yellow);border-color:var(--yellow)}
+.rt-sobre{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(3,2,10,.9);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.rt-caixa{font-family:var(--font-body);font-size:20px;width:100%;max-width:380px;max-height:100%;overflow:auto;border-radius:8px;padding:18px;text-align:center;color:var(--fg);background:rgba(12,7,32,.97);border:2px solid var(--cyan);box-shadow:0 0 24px rgba(37,244,255,.35),inset 0 0 18px rgba(37,244,255,.12)}
+.rt-caixa h2{font-family:var(--font-display);font-weight:400;font-size:13px;line-height:1.6;margin:0 0 10px;color:var(--cyan);text-shadow:0 0 10px var(--cyan)}
+.rt-caixa p.rt-sub{font-size:21px;color:var(--dim);margin:0 0 12px}
+.rt-caixa input{-webkit-user-select:text;user-select:text;width:100%;padding:10px 12px;margin-bottom:8px;border-radius:4px;border:1px solid var(--line);background:rgba(0,0,0,.5);color:var(--fg);font-size:22px;font-family:inherit;text-align:center;outline:none}
+.rt-caixa input:focus{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(37,244,255,.3)}
+.rt-abas{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.rt-aba,.rt-btn{font-family:var(--font-display);font-size:9px;letter-spacing:.06em;border-radius:4px;padding:11px 8px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--dim);cursor:pointer}
+.rt-aba.on{border-color:var(--cyan);background:rgba(37,244,255,.16);color:var(--cyan)}
+.rt-btn.principal{width:100%;padding:13px;font-size:11px;border:0;color:#05030f;background:var(--cyan);box-shadow:0 0 12px rgba(37,244,255,.5)}
+.rt-btn.sec{width:100%;margin-top:8px}
+.rt-btn:disabled{opacity:.55}
+.rt-erro{min-height:22px;margin:2px 0 8px;font-size:20px;color:var(--red)}
+.rt-tab{width:100%;border-collapse:collapse;font-size:21px;text-align:left}
+.rt-tab th{font-family:var(--font-display);font-weight:400;font-size:7px;letter-spacing:.08em;color:var(--dim);padding:6px 4px;border-bottom:1px solid var(--line)}
+.rt-tab td{padding:5px 4px;border-bottom:1px solid rgba(255,255,255,.06)}
+.rt-tab td.n,.rt-tab th.n{text-align:right;font-variant-numeric:tabular-nums}
+.rt-tab tr.eu td{background:rgba(37,244,255,.15);color:var(--cyan)}
+.rt-lista{max-height:52vh;overflow:auto;margin-bottom:10px;-webkit-overflow-scrolling:touch}
+.rt-nota{margin:6px 0 0;font-size:19px;color:var(--yellow);min-height:18px}
 </style>
 
 </head>
@@ -111,9 +139,11 @@ a.portal:hover{background:rgba(255,43,214,.14);color:var(--magenta);border-color
   <div class="stat"><span class="k">PODER</span><span class="v" id="power">—</span></div>
   <div class="tools">
     <a class="mute portal" id="portal" href="https://figueira61.github.io/Templo-do-Retro/">PORTAL</a>
+    <button class="mute hall" id="hallBtn" type="button" aria-label="Hall of Fame">🏆 HALL</button>
     <button class="mute" id="mute" type="button" aria-pressed="false">SOM</button>
   </div>
 </header>
+<div class="rt-barra"><span id="rt-jog"></span><span id="rt-estado" role="status" aria-live="polite"></span></div>
 
 <main class="stage" id="stage">
   <canvas id="game" width="480" height="640" aria-label="Campo de jogo do Arkanoid"></canvas>
@@ -141,6 +171,151 @@ a.portal:hover{background:rgba(255,43,214,.14);color:var(--magenta);border-color
   <span style="--c:#c04bff"><b>B</b>Portal</span>
 </div>
 <div class="hint">Cada cápsula apanhada vale 1.000 pontos. O portal B dá 10.000.</div>
+
+
+<!-- Login (nome + PIN) -->
+<div id="rt-login" class="rt-sobre" hidden>
+  <form id="rt-form" class="rt-caixa" autocomplete="off">
+    <h2>🕹️ TEMPLO DO RETRO</h2>
+    <p class="rt-sub">Escolhe o teu nome de jogador (único) e um PIN de 4 a 6 dígitos.</p>
+    <div class="rt-abas">
+      <button type="button" class="rt-aba on" id="rt-aba-entrar">ENTRAR</button>
+      <button type="button" class="rt-aba" id="rt-aba-criar">CRIAR JOGADOR</button>
+    </div>
+    <input id="rt-nome" type="text" maxlength="16" placeholder="Nome de jogador" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Nome de jogador">
+    <input id="rt-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="PIN (4 a 6 dígitos)" aria-label="PIN">
+    <div id="rt-erro" class="rt-erro" role="alert"></div>
+    <button type="submit" id="rt-ok" class="rt-btn principal">ENTRAR</button>
+    <button type="button" id="rt-offline" class="rt-btn sec" hidden>JOGAR SEM RANKING</button>
+  </form>
+</div>
+
+<!-- Hall of Fame -->
+<div id="rt-hall" class="rt-sobre" hidden>
+  <div class="rt-caixa">
+    <h2>🏆 HALL OF FAME</h2>
+    <p class="rt-sub">Recordes de todos os jogadores · Arkanoid</p>
+    <div class="rt-lista"><table class="rt-tab"><thead><tr><th>#</th><th>JOGADOR</th><th class="n">RECORDE</th><th class="n">JOGOS</th></tr></thead><tbody id="rt-corpo"></tbody></table></div>
+    <p id="rt-hall-nota" class="rt-nota"></p>
+    <button type="button" id="rt-hall-fecha" class="rt-btn principal">FECHAR</button>
+  </div>
+</div>
+
+<script>
+/* ===== RETRO: cliente do Templo do Retro (Supabase) — partilhado pelos 3 sites ===== */
+var RETRO = (function () {
+  var URL = "https://gzehglkrrpwahuzkqjxa.supabase.co";
+  var KEY = "sb_publishable_9EI749gU417uUY9bPCTvzA_gmFEwAwm";
+  var CHAVE = "retro.sessao";
+  var sessao = null;
+
+  function rpc(fn, corpo) {
+    var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var t = ctl ? setTimeout(function () { ctl.abort(); }, 10000) : null;
+    return fetch(URL + "/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: { "apikey": KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(corpo || {}),
+      signal: ctl ? ctl.signal : undefined
+    }).then(function (r) {
+      if (t) clearTimeout(t);
+      if (!r.ok) throw new Error("http_" + r.status);
+      return r.json();
+    }, function (e) {
+      if (t) clearTimeout(t);
+      throw new Error("rede");
+    });
+  }
+
+  function lerSessao() {
+    try {
+      var s = JSON.parse(localStorage.getItem(CHAVE) || "null");
+      if (s && s.username && s.token) { sessao = s; return s; }
+    } catch (e) {}
+    sessao = null; return null;
+  }
+  function guardarSessao(username, token) {
+    sessao = { username: username, token: token };
+    try { localStorage.setItem(CHAVE, JSON.stringify(sessao)); } catch (e) {}
+  }
+  function limparSessao() {
+    sessao = null;
+    try { localStorage.removeItem(CHAVE); } catch (e) {}
+  }
+
+  function trata(p) {
+    return p.then(function (r) {
+      if (r && r.ok && r.token) guardarSessao(r.username, r.token);
+      return r;
+    });
+  }
+  function entrar(nome, pin) { return trata(rpc("login_player", { p_username: nome, p_pin: pin })); }
+  function criar(nome, pin) { return trata(rpc("register_player", { p_username: nome, p_pin: pin })); }
+
+  // Valida a sessão guardada. Devolve {ok:true,username} | {ok:false} (sessão inválida).
+  // Se não houver rede, rejeita (quem chama decide continuar com a sessão local).
+  function validar() {
+    var s = lerSessao();
+    if (!s) return Promise.resolve({ ok: false, error: "sem_sessao" });
+    return rpc("check_session", { p_token: s.token }).then(function (r) {
+      if (!r || !r.ok) limparSessao();
+      return r;
+    });
+  }
+  function sair() {
+    var s = sessao || lerSessao();
+    limparSessao();
+    if (!s) return Promise.resolve();
+    return rpc("logout_player", { p_token: s.token }).catch(function () {});
+  }
+  function enviar(jogo, dados) {
+    var s = sessao || lerSessao();
+    if (!s) return Promise.resolve({ ok: false, error: "invalid_session" });
+    return rpc("submit_result", {
+      p_token: s.token, p_game: jogo,
+      p_score: dados && dados.score != null ? dados.score : null,
+      p_result: dados && dados.result ? dados.result : null
+    }).then(function (r) {
+      if (r && !r.ok && r.error === "invalid_session") limparSessao();
+      return r;
+    });
+  }
+  function ranking(jogo) { return rpc("get_leaderboard", { p_game: jogo, p_limit: 500 }); }
+  function minhasStats() {
+    var s = sessao || lerSessao();
+    if (!s) return Promise.resolve({ ok: false, error: "invalid_session" });
+    return rpc("get_my_stats", { p_token: s.token });
+  }
+
+  function mensagemErro(r) {
+    var e = r && r.error;
+    if (e === "invalid_name") return "Nome inválido: 2 a 16 caracteres (letras, números, espaço . _ -).";
+    if (e === "invalid_pin") return "PIN inválido: usa 4 a 6 dígitos.";
+    if (e === "name_taken") return "Esse nome já está em uso. Escolhe outro.";
+    if (e === "wrong_credentials") return "Nome ou PIN errado.";
+    if (e === "locked") {
+      var m = Math.max(1, Math.ceil((r.retry_in || 60) / 60));
+      return "Conta bloqueada por PINs errados. Tenta daqui a " + m + " min.";
+    }
+    if (e === "full") return "O Templo está cheio de jogadores.";
+    if (e === "invalid_session") return "A sessão expirou. Entra de novo.";
+    return "Erro inesperado. Tenta de novo.";
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  return {
+    rpc: rpc, sessao: function () { return sessao || lerSessao(); },
+    entrar: entrar, criar: criar, validar: validar, sair: sair,
+    enviar: enviar, ranking: ranking, minhasStats: minhasStats,
+    mensagemErro: mensagemErro, esc: esc,
+    redeErro: function (e) { return !!e && (e.message === "rede" || /^http_/.test(e.message)); }
+  };
+})();
+    </script>
 
 <script>
 (() => {
@@ -322,6 +497,7 @@ function pause() { if (state === 'ready' || state === 'play') { prevState = stat
 function resume() { if (state === 'paused') { state = prevState; hideOverlay(); } }
 function toMenu() {
   saveHi();
+  if (score > 0) rtEnviaPontuacao(score);
   state = 'menu'; fireHeld = false; keys.left = keys.right = false;
   score = 0; level = 1; lives = DIFF[diff].lives; lastLives = -1; hits = 0;
   powers = { laser: false, enlarge: false, catch: false };
@@ -332,6 +508,7 @@ function toMenu() {
 }
 function gameOver() {
   state = 'over'; saveHi(); updateHUD(); showOverlay('over');
+  rtEnviaPontuacao(score);
 }
 
 // ---------- actions ----------
@@ -660,6 +837,8 @@ cv.addEventListener('pointerup', stopFire);
 cv.addEventListener('pointercancel', stopFire);
 
 window.addEventListener('keydown', e => {
+  if (rtOverlayAberto()) { if (e.key === 'Escape' && !rtHall.hidden) rtHall.hidden = true; return; }
+  if (e.target && e.target.tagName === 'INPUT') return;
   if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { keys.left = true; if (el.ov.hidden) e.preventDefault(); }
   else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { keys.right = true; if (el.ov.hidden) e.preventDefault(); }
   else if (e.code === 'Space') {
@@ -695,8 +874,107 @@ function frame(now) {
   draw();
   requestAnimationFrame(frame);
 }
+// ===== Multiplayer (Supabase): login + Hall of Fame =====
+const RT_JOGO = 'arkanoid';
+const rtLogin = $('rt-login'), rtHall = $('rt-hall'), rtNome = $('rt-nome'), rtPin = $('rt-pin');
+const rtErro = $('rt-erro'), rtOk = $('rt-ok'), rtOffline = $('rt-offline');
+let rtModo = 'entrar', rtSemRanking = false;
+
+function rtOverlayAberto() { return !rtLogin.hidden || !rtHall.hidden; }
+function rtAplicaRecorde(best) { if (best > hi) { hi = best; updateHUD(); } }
+
+function rtMostraJogador() {
+  const box = $('rt-jog'), s = RETRO.sessao();
+  if (s) {
+    box.innerHTML = 'Jogador: <b>' + RETRO.esc(s.username) + '</b> <button type="button" id="rt-sair">Sair</button>';
+    $('rt-sair').addEventListener('click', () => { RETRO.sair(); rtSemRanking = false; rtMostraJogador(); rtAbreLogin(); });
+  } else if (rtSemRanking) {
+    box.innerHTML = 'Sem ranking <button type="button" id="rt-entrar-menu">Entrar</button>';
+    $('rt-entrar-menu').addEventListener('click', rtAbreLogin);
+  } else box.textContent = '';
+}
+function rtModoSet(m) {
+  rtModo = m;
+  $('rt-aba-entrar').classList.toggle('on', m === 'entrar');
+  $('rt-aba-criar').classList.toggle('on', m === 'criar');
+  rtOk.textContent = m === 'entrar' ? 'ENTRAR' : 'CRIAR E ENTRAR';
+  rtErro.textContent = '';
+}
+function rtAbreLogin() {
+  pause();
+  rtErro.textContent = ''; rtPin.value = ''; rtOffline.hidden = true; rtLogin.hidden = false;
+  setTimeout(() => rtNome.focus(), 50);
+}
+function rtAposLogin() {
+  rtLogin.hidden = true; rtSemRanking = false; rtMostraJogador();
+  RETRO.minhasStats().then(r => {
+    if (r && r.ok) rtAplicaRecorde(((r.stats && r.stats[RT_JOGO]) || {}).best_score || 0);
+  }).catch(() => {});
+}
+$('rt-aba-entrar').addEventListener('click', () => rtModoSet('entrar'));
+$('rt-aba-criar').addEventListener('click', () => rtModoSet('criar'));
+$('rt-form').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const nome = rtNome.value.trim(), pin = rtPin.value.trim();
+  if (nome.length < 2) { rtErro.textContent = 'Escreve o teu nome de jogador.'; return; }
+  if (!/^[0-9]{4,6}$/.test(pin)) { rtErro.textContent = 'O PIN tem de ter 4 a 6 dígitos.'; return; }
+  rtErro.textContent = ''; rtOk.disabled = true;
+  (rtModo === 'entrar' ? RETRO.entrar(nome, pin) : RETRO.criar(nome, pin)).then(r => {
+    rtOk.disabled = false;
+    if (r && r.ok) rtAposLogin(); else rtErro.textContent = RETRO.mensagemErro(r);
+  }, () => {
+    rtOk.disabled = false;
+    rtErro.textContent = 'Sem ligação ao servidor. Tenta de novo ou joga sem ranking.';
+    rtOffline.hidden = false;
+  });
+});
+rtOffline.addEventListener('click', () => { rtSemRanking = true; rtLogin.hidden = true; rtMostraJogador(); });
+
+function rtAbreHall() {
+  pause();
+  const corpo = $('rt-corpo'), nota = $('rt-hall-nota');
+  corpo.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9a94c8">A carregar…</td></tr>';
+  nota.textContent = ''; rtHall.hidden = false;
+  RETRO.ranking(RT_JOGO).then(lista => {
+    const eu = (RETRO.sessao() || {}).username;
+    if (!lista || !lista.length) {
+      corpo.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9a94c8">Ainda não há jogadores.</td></tr>';
+      return;
+    }
+    corpo.innerHTML = lista.map((j, i) => {
+      const medalha = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+      return '<tr' + (eu && j.username.toLowerCase() === eu.toLowerCase() ? ' class="eu"' : '') + '><td>' + medalha + '</td><td>' + RETRO.esc(j.username) + '</td><td class="n">' + j.best_score + '</td><td class="n">' + j.games + '</td></tr>';
+    }).join('');
+  }).catch(() => { corpo.innerHTML = ''; nota.textContent = 'Sem ligação ao servidor. Não foi possível carregar o ranking.'; });
+}
+$('hallBtn').addEventListener('click', rtAbreHall);
+$('rt-hall-fecha').addEventListener('click', () => { rtHall.hidden = true; });
+
+function rtEnviaPontuacao(pontos) {
+  const box = $('rt-estado');
+  box.textContent = '';
+  if (!RETRO.sessao()) { if (rtSemRanking) box.textContent = 'Sem ranking: pontuação não enviada.'; return; }
+  box.textContent = 'A enviar pontuação…';
+  RETRO.enviar(RT_JOGO, { score: pontos }).then(r => {
+    if (r && r.ok) {
+      box.textContent = '✔ Pontuação registada no Hall of Fame.';
+      if (r.stats && r.stats.best_score != null) rtAplicaRecorde(r.stats.best_score);
+    } else if (r && r.error === 'invalid_session') {
+      box.textContent = 'Sessão expirada. Entra de novo para registar pontuações.'; rtMostraJogador();
+    } else if (r && r.error === 'too_fast') box.textContent = 'Pontuação não registada (partida demasiado rápida).';
+    else box.textContent = 'Não foi possível registar a pontuação.';
+  }, () => { box.textContent = 'Sem ligação: pontuação não registada no ranking.'; });
+}
+
 buildLevel(); updateHUD(); setDiff('normal'); showOverlay('menu');
 requestAnimationFrame(frame);
+
+rtMostraJogador();
+if (RETRO.sessao()) {
+  RETRO.validar().then(r => {
+    if (r && r.ok) rtAposLogin(); else { rtMostraJogador(); rtAbreLogin(); }
+  }, () => { rtMostraJogador(); });
+} else rtAbreLogin();
 })();
 </script>
 </body>
